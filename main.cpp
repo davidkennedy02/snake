@@ -3,7 +3,11 @@
 #include <deque>
 #include <math.h>
 #include <fstream>
+#include "GameConstants.h"
+#include "Snake.h"
+#include "Food.h"
 
+// Define all the global constants
 const int cellSize = 45;  // Changed from 30 to 45 to match the new assets
 const int screenWidth = 900;
 const int screenHeight = 900;
@@ -13,256 +17,13 @@ const int windowHeight = screenHeight + 2 * borderSize; // Total window height i
 const int rows = screenHeight / cellSize;  // Now equals 20 (900/45)
 const int cols = screenWidth / cellSize;   // Now equals 20 (900/45)
 
+// Define the global variables
 int score = 0; // Initialize score
 int highscore = 0; // Initialize high score
 int frameCounter = 0; // Counter for frames since last movement
 int moveDelay = 15; // Initial delay - snake moves four times every 60 frames
 int minMoveDelay = 5; // Minimum delay between movements
-float musicTimer = 0.0f;
-
-class Snake { 
-    public:
-        std::deque<Vector2> body = {Vector2{3, 3}, Vector2{2, 3}, Vector2{1, 3}}; // Snake body segments
-        Vector2 direction = {1, 0}; // Initial direction (right)
-        Vector2 nextDirection = {1, 0}; // Buffer for next direction
-        bool isAlive = true; // Snake alive status
-        Texture2D texture_head_up, texture_head_down, texture_head_left, texture_head_right;
-        Texture2D texture_body_up, texture_body_down, texture_body_left, texture_body_right;
-        Texture2D texture_tail_up, texture_tail_down, texture_tail_left, texture_tail_right;
-        
-        Snake() {
-            Image head_up = LoadImage("snake_assets/head_up.png"); // Load head image
-            Image head_down = LoadImage("snake_assets/head_down.png"); // Load head image
-            Image head_left = LoadImage("snake_assets/head_left.png"); // Load head image
-            Image head_right = LoadImage("snake_assets/head_right.png"); // Load head image
-            Image body_up = LoadImage("snake_assets/body_up.png"); // Load body image
-            Image body_down = LoadImage("snake_assets/body_down.png"); // Load body image
-            Image body_left = LoadImage("snake_assets/body_left.png"); // Load body image
-            Image body_right = LoadImage("snake_assets/body_right.png"); // Load body image
-            Image tail_up = LoadImage("snake_assets/tail_up.png"); // Load tail image
-            Image tail_down = LoadImage("snake_assets/tail_down.png"); // Load tail image
-            Image tail_left = LoadImage("snake_assets/tail_left.png"); // Load tail image
-            Image tail_right = LoadImage("snake_assets/tail_right.png"); // Load tail image
-
-            texture_head_up = LoadTextureFromImage(head_up); // Load texture from image
-            texture_head_down = LoadTextureFromImage(head_down); // Load texture from image
-            texture_head_left = LoadTextureFromImage(head_left);
-            texture_head_right = LoadTextureFromImage(head_right);
-            texture_body_up = LoadTextureFromImage(body_up);
-            texture_body_down = LoadTextureFromImage(body_down);
-            texture_body_left = LoadTextureFromImage(body_left);
-            texture_body_right = LoadTextureFromImage(body_right);
-            texture_tail_up = LoadTextureFromImage(tail_up);
-            texture_tail_down = LoadTextureFromImage(tail_down);
-            texture_tail_left = LoadTextureFromImage(tail_left);
-            texture_tail_right = LoadTextureFromImage(tail_right);
-
-            UnloadImage(head_up); // Unload image to free memory
-            UnloadImage(head_down); // Unload image to free memory
-            UnloadImage(head_left); // Unload image to free memory
-            UnloadImage(head_right); // Unload image to free memory
-            UnloadImage(body_up); // Unload image to free memory
-            UnloadImage(body_down); // Unload image to free memory
-            UnloadImage(body_left);
-            UnloadImage(body_right);
-            UnloadImage(tail_up); // Unload image to free memory
-            UnloadImage(tail_down); // Unload image to free memory
-            UnloadImage(tail_left); // Unload image to free memory
-            UnloadImage(tail_right); // Unload image to free memory
-        }
-
-        ~Snake() {
-            UnloadTexture(texture_head_up); // Unload texture to free memory
-            UnloadTexture(texture_head_down); // Unload texture to free memory
-            UnloadTexture(texture_head_left); // Unload texture to free memory
-            UnloadTexture(texture_head_right); // Unload texture to free memory
-            UnloadTexture(texture_body_up); // Unload texture to free memory
-            UnloadTexture(texture_body_down); // Unload texture to free memory
-            UnloadTexture(texture_body_left); // Unload texture to free memory
-            UnloadTexture(texture_body_right); // Unload texture to free memory
-            UnloadTexture(texture_tail_up); // Unload texture to free memory
-            UnloadTexture(texture_tail_down); // Unload texture to free memory
-            UnloadTexture(texture_tail_left); // Unload texture to free memory
-            UnloadTexture(texture_tail_right); // Unload texture to free memory
-        }
-
-        void UpdatePosition() { 
-            // Apply the buffered direction
-            direction = nextDirection;
-            
-            Vector2 newHead = body.front(); // Get the current head position
-            newHead.x += direction.x; // Update head position based on direction
-            newHead.y += direction.y;
-
-            body.push_front(newHead); // Add new head to the front of the body
-            body.pop_back(); // Remove the last segment of the snake
-        }
-
-        void CheckInput() { 
-            if (IsKeyPressed(KEY_UP) && direction.y == 0) {
-                nextDirection = {0, -1}; // Move up
-            } else if (IsKeyPressed(KEY_DOWN) && direction.y == 0) {
-                nextDirection = {0, 1}; // Move down
-            } else if (IsKeyPressed(KEY_LEFT) && direction.x == 0) {
-                nextDirection = {-1, 0}; // Move left
-            } else if (IsKeyPressed(KEY_RIGHT) && direction.x == 0) {
-                nextDirection = {1, 0}; // Move right
-            }
-        }
-
-        bool HasCrashed() { 
-            // Check if the snake has crashed into itself or the walls
-            if (body.front().x < 0 || body.front().x >= cols || 
-                body.front().y < 0 || body.front().y >= rows) {
-                return true; // Snake has crashed into the wall
-            }
-            for (size_t i = 1; i < body.size(); ++i) {
-                if (body.front().x == body[i].x && body.front().y == body[i].y) {
-                    return true; // Snake has crashed into itself
-                }
-            }
-            return false; // No crash detected
-        }
-
-        void Reset() { 
-            body.clear(); // Clear the snake body
-            body.push_back(Vector2{3, 3}); // Reset to initial position
-            body.push_back(Vector2{2, 3});
-            body.push_back(Vector2{1, 3});
-            direction = {1, 0}; // Reset direction to right
-            nextDirection = {1, 0}; // Reset next direction to right
-            isAlive = true; // Set alive status to true
-        }
-
-        void Draw() { 
-            if (isAlive) {
-                CheckInput(); // Check for user input every frame
-                
-                // Only update position when frame counter reaches threshold
-                if (frameCounter >= moveDelay) {
-                    UpdatePosition(); // Update the snake's position
-                    frameCounter = 0; // Reset frame counter
-                }
-            }
-            
-            for (size_t i = 0; i < body.size(); ++i) {
-                Vector2 segment = body[i]; // Get the current segment position
-                float x = segment.x * cellSize + borderSize; // Add border offset to x
-                float y = segment.y * cellSize + borderSize; // Add border offset to y
-                
-                if (i == 0) {
-                    // Draw the head based on the direction
-                    if (direction.x == 1) DrawTexture(texture_head_right, x, y, WHITE); 
-                    else if (direction.x == -1) DrawTexture(texture_head_left, x, y, WHITE); 
-                    else if (direction.y == 1) DrawTexture(texture_head_down, x, y, WHITE); 
-                    else if (direction.y == -1) DrawTexture(texture_head_up, x, y, WHITE); 
-                } else if (i == body.size() - 1) { 
-                    // Draw the tail based on the direction of the second last segment
-                    if (body[i].x == body[i-1].x) {
-                        if (body[i].y > body[i-1].y) DrawTexture(texture_tail_up, x, y, WHITE); // Draw tail up
-                        else DrawTexture(texture_tail_down, x, y, WHITE); // Draw tail down
-                    } else if (body[i].y == body[i-1].y) {
-                        if (body[i].x > body[i-1].x) DrawTexture(texture_tail_left, x, y, WHITE); // Draw tail left
-                        else DrawTexture(texture_tail_right, x, y, WHITE); // Draw tail right
-                    }
-                } else {
-                    if (body[i].x == body[i-1].x) {
-                        if (body[i].y > body[i-1].y) DrawTexture(texture_body_down, x, y, WHITE); // Draw body down
-                        else DrawTexture(texture_body_up, x, y, WHITE); // Draw body up
-                    } else if (body[i].y == body[i-1].y) {
-                        if (body[i].x > body[i-1].x) DrawTexture(texture_body_right, x, y, WHITE); // Draw body right
-                        else DrawTexture(texture_body_left, x, y, WHITE); // Draw body left
-                    } 
-                }
-            }
-        }
-};
-
-
-class Food { 
-    public:
-        Texture2D texture_apple; // Food texture
-        float rotationAngle = 0.0f; // Rotation angle for animation
-
-        Food() {
-            Image apple = LoadImage("snake_assets/apple.png"); // Load apple image
-            texture_apple = LoadTextureFromImage(apple); // Load texture from image
-            UnloadImage(apple); // Unload image to free memory
-        }
-
-        ~Food() {
-            UnloadTexture(texture_apple); // Unload texture to free memory
-        }
-
-        void spawn(Snake& snake) {
-            // Check if the food spawns on the snake's body
-            bool spawnOnSnake = false;
-            do {
-                spawnOnSnake = false; // Reset flag for each spawn attempt
-                // Randomly generate food position
-                position.x = GetRandomValue(0, cols-1); // Random x position
-                position.y = GetRandomValue(0, rows-1); // Random y position
-
-                // Check if the food spawns on the snake's body
-                for (size_t i = 0; i < snake.body.size(); ++i) {
-                    if (position.x == snake.body[i].x && position.y == snake.body[i].y) {
-                        spawnOnSnake = true; // Food spawns on snake's body
-                        break; // Exit loop
-                    }
-                }
-            } while (spawnOnSnake); // Repeat until food spawns outside the snake's body
-        }
-
-        void CheckCollision(Snake& snake, Sound& eatSound) { 
-            if (position.x == snake.body.front().x && position.y == snake.body.front().y) {
-                PlaySound(eatSound); // Play eat sound
-                snake.body.push_back(snake.body.back()); // Grow the snake
-                score += 10; // Increase score
-                
-                // Increase speed by decreasing move delay
-                if (moveDelay > minMoveDelay)
-                    moveDelay -= 1;
-                
-                spawn(snake); // Respawn food
-            }
-        }
-
-        void Update() {
-            float time = GetTime(); // Get current time
-            float rotationSpeed = 2.0f;
-            float maxRotation = 15.0f;
-
-            rotationAngle = sin(time * rotationSpeed) * maxRotation;
-        }
-
-        void Draw() {
-            Update(); // Update rotation angle
-            Vector2 origin = {
-                texture_apple.width / 2.0f, 
-                texture_apple.height / 2.0f
-            }; // Set origin for rotation
-            
-            Rectangle sourceRec = {
-                0, 
-                0, 
-                (float)texture_apple.width, 
-                (float)texture_apple.height
-            }; // Source rectangle for texture
-
-            Rectangle destRec = {
-                position.x * cellSize + borderSize + cellSize / 2, 
-                position.y * cellSize + borderSize + cellSize / 2, 
-                (float)texture_apple.width, 
-                (float)texture_apple.height
-            }; // Destination rectangle for texture
-            
-            DrawTexturePro(texture_apple, sourceRec, destRec, origin, rotationAngle, WHITE); // Draw food with rotation
-        }
-    
-    private:
-        Vector2 position; // Food position
-};
-
+bool playedGameOverSound = false; // Flag to check if game over sound has been played
 
 bool LoadHighscore() {
     std::ifstream file("highscore.dat");
@@ -360,7 +121,6 @@ void DisplayScores() {
     }
 }
 
-// New function to display game over screen
 void DisplayGameOverScreen() {
     static float textAlpha = 0.0f;
     static float animTimer = 0.0f;
@@ -406,7 +166,6 @@ void DisplayGameOverScreen() {
     DrawRectangle(windowWidth/2 - 150, windowHeight/2 + 130, 300, 3, titleColor);
 }
 
-// Modified function to display title screen
 bool DisplayTitleScreen(Texture2D& backgroundTexture) {
     static float titleAlpha = 0.0f;
     static bool fadeIn = true;
@@ -455,95 +214,133 @@ bool DisplayTitleScreen(Texture2D& backgroundTexture) {
     return false; // Stay on title screen
 }
 
-int main() {
-
-    InitWindow(windowWidth, windowHeight, "Snake Game"); // Use the new window dimensions
-    SetTargetFPS(60); // Set constant 60 FPS
-
+void InitializeGame(Snake& snake, Food& food, Texture2D& backgroundTexture, 
+                    Sound& eatSound, Sound& gameOverSound, Music& music) {
     LoadHighscore(); // Load high score from file
 
-    Image background = LoadImage("snake_assets/background.png"); // Load background image
-    Texture2D texture_background = LoadTextureFromImage(background); // Load texture from image
+    // Load background
+    Image background = LoadImage("snake_assets/background.png");
+    backgroundTexture = LoadTextureFromImage(background);
     UnloadImage(background);
 
-    InitAudioDevice(); // Initialize audio device
-    Sound eatSound = LoadSound("sounds/eat_sound.mp3"); // Load eat sound
-    Sound gameOverSound = LoadSound("sounds/game_over.mp3"); // Load game over sound
-    SetSoundVolume(eatSound, 1.0f); // Set eat sound volume
-    SetSoundVolume(gameOverSound, 1.0f); // Set game over sound volume
-
-    Music music = LoadMusicStream("sounds/soundtrack.mp3"); // Load background music
-    SetMusicVolume(music, 0.5f); // Set music volume
-
-    Snake snake = Snake();
-    Food food = Food(); 
-    food.spawn(snake); // Spawn the food
+    // Initialize audio
+    InitAudioDevice();
+    eatSound = LoadSound("sounds/eat_sound.mp3");
+    gameOverSound = LoadSound("sounds/game_over.mp3");
+    SetSoundVolume(eatSound, 1.0f);
+    SetSoundVolume(gameOverSound, 1.0f);
     
-    // Add a title screen flag
+    music = LoadMusicStream("sounds/soundtrack.mp3");
+    SetMusicVolume(music, 0.5f);
+    
+    // Initialize game objects
+    food.spawn(snake);
+}
+
+void UpdateGame(Snake& snake, Food& food, Sound& eatSound, Sound& gameOverSound, 
+                Music& music, bool& inTitleScreen) {
+    // Update music stream
+    UpdateMusicStream(music);
+    
+    // Skip the rest if in title screen
+    if (inTitleScreen) {
+        return;
+    }
+    
+    // Increment frame counter
+    frameCounter++;
+    
+    // Check for food collision
+    food.CheckCollision(snake, eatSound);
+    
+    // Check for game over condition
+    if (!snake.isAlive && !playedGameOverSound) {
+        PlaySound(gameOverSound);
+        StopMusicStream(music);
+        playedGameOverSound = true;
+    } 
+    
+    // Handle restart
+    if (!snake.isAlive && IsKeyPressed(KEY_R)) {
+        snake.Reset();
+        food.spawn(snake);
+        score = 0;
+        moveDelay = 15;
+        SeekMusicStream(music, 0.0f);
+        PlayMusicStream(music);
+        playedGameOverSound = false; // Reset game over sound flag
+    }
+}
+
+void RenderGame(Snake& snake, Food& food, Texture2D& backgroundTexture, 
+                bool& inTitleScreen, Music& music) {
+    BeginDrawing();
+    
+    // Handle title screen
+    if (inTitleScreen) {
+        if (DisplayTitleScreen(backgroundTexture)) {
+            inTitleScreen = false;
+            PlayMusicStream(music);
+        }
+        EndDrawing();
+        return;
+    }
+    
+    // Draw game elements
+    ClearBackground(WHITE);
+    DrawRectangle(borderSize, borderSize, screenWidth, screenHeight, WHITE);
+    DrawTexture(backgroundTexture, 0, 0, WHITE);
+    
+    DisplayScores();
+    snake.Draw();
+    food.Draw();
+    
+    // Show game over screen if needed
+    if (!snake.isAlive) {
+        DisplayGameOverScreen();
+    }
+    
+    EndDrawing();
+}
+
+void CleanupGame(Texture2D& backgroundTexture, Sound& eatSound, 
+                 Sound& gameOverSound, Music& music) {
+    SaveHighscore();
+    
+    UnloadTexture(backgroundTexture);
+    UnloadMusicStream(music);
+    UnloadSound(eatSound);
+    UnloadSound(gameOverSound);
+    CloseAudioDevice();
+    
+    CloseWindow();
+}
+
+int main() {
+    // Initialize window
+    InitWindow(windowWidth, windowHeight, "Snake Game");
+    SetTargetFPS(60);
+
+    // Create game objects and resources
+    Snake snake = Snake();
+    Food food = Food();
+    Texture2D texture_background;
+    Sound eatSound;
+    Sound gameOverSound;
+    Music music;
     bool inTitleScreen = true;
+    
+    // Initialize game
+    InitializeGame(snake, food, texture_background, eatSound, gameOverSound, music);
     
     // Main game loop
     while (!WindowShouldClose()) {
-        
-        UpdateMusicStream(music); // Update the music stream
-        
-        BeginDrawing(); // Always begin drawing at start of loop
-        
-        // Handle title screen
-        if (inTitleScreen) {
-            if (DisplayTitleScreen(texture_background)) {
-                inTitleScreen = false; // Exit title screen and start the game
-                PlayMusicStream(music); // Start playing music when game begins
-            }
-            EndDrawing(); // End drawing before continuing
-            continue; // Skip rest of loop while in title screen
-        }
-        
-        // Increment frame counter each frame
-        frameCounter++;
-
-        ClearBackground(WHITE);
-        
-        // Draw the game border
-        DrawRectangle(borderSize, borderSize, screenWidth, screenHeight, WHITE);
-        DrawTexture(texture_background, 0, 0, WHITE); // Draw background texture
-        
-        DisplayScores(); // Display the scores
-
-        snake.Draw(); // Draw the snake
-
-        food.CheckCollision(snake, eatSound); // Check for food collision
-        food.Draw(); // Draw the food
-
-        if (snake.HasCrashed()) { // Check for collisions
-            if (snake.isAlive) {
-                PlaySound(gameOverSound); // Play game over sound
-                StopMusicStream(music); // Stop the music
-            }
-            snake.isAlive = false; 
-            DisplayGameOverScreen(); // Use the new game over screen
-        }
-
-        if (!snake.isAlive && IsKeyPressed(KEY_R)) {
-            snake.Reset(); // Reset the snake
-            food.spawn(snake); // Respawn food
-            score = 0; // Reset score
-            moveDelay = 15; // Reset movement delay
-            SeekMusicStream(music, 0.0f); // Restart the music
-            PlayMusicStream(music); // Play background music
-        }
-
-        EndDrawing();
+        UpdateGame(snake, food, eatSound, gameOverSound, music, inTitleScreen);
+        RenderGame(snake, food, texture_background, inTitleScreen, music);
     }
-
-    SaveHighscore(); // Save high score to file
-
-    UnloadTexture(texture_background); // Unload background texture to free memory
-    UnloadMusicStream(music); // Unload music stream to free memory
-    UnloadSound(eatSound); // Unload sound to free memory
-    UnloadSound(gameOverSound); // Unload sound to free memory
-    CloseAudioDevice(); // Close audio device
-
-    CloseWindow();
+    
+    // Cleanup before exit
+    CleanupGame(texture_background, eatSound, gameOverSound, music);
+    
     return 0;
 }
